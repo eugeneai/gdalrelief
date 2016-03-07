@@ -255,6 +255,10 @@ setup_dict = dict(
     packages=find_packages(exclude=(TESTS_DIRECTORY,)),
     install_requires=[
         # your module dependencies
+        "numpy",
+        "scipy",
+        "gdal",
+        "matplotlib",
     ] + python_version_specific_requires,
     # Allow tests to be run with `python setup.py test'.
     tests_require=[

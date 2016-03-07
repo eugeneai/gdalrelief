@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # a bar plot with errorbars
 import numpy
-import gdal
+from osgeo import gdal
 import matplotlib.pyplot as plt
 #import scipy
 
@@ -129,7 +129,7 @@ def spline_plot():
 
 def test_1():
     h=Hatch(0,0, 832,784, 5)
-    rs=RasterSection(raster="ALTITUDE 1Trim.grd", hatch=h)
+    rs=RasterSection(raster="../data/Goloustnoye/ALTITUDE 1Trim.grd", hatch=h)
     rs.info()
     sec=rs(4)
     valid=sec[sec>0]
