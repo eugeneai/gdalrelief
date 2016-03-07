@@ -1,9 +1,12 @@
 #!/usr/bin/env python
 # a bar plot with errorbars
-import numpy
+import numpy as np
 from osgeo import gdal
 import matplotlib.pyplot as plt
+import gdalrelief.diff as diff
 #import scipy
+
+TESTRASTER="../data/Goloustnoye/ALTITUDE 1Trim.grd"
 
 class Hatch(object):
     """Defines section data consisting of
@@ -36,7 +39,7 @@ class RasterProcessor(object):
         print (len(band[0]))
         for x,y in self.line():
             sec.append(band[x,y])
-        return numpy.array(sec)
+        return np.array(sec)
 
     def info(self):
         src_ds=self.raster
@@ -59,6 +62,31 @@ class RasterProcessor(object):
 
         print ("-----------------------------------------")
 
+    def display(self, raster, interpolation="nearest", between=None):
+        fig, ax = plt.subplots()
+        print (raster)
+        if between:
+            raster=np.where(raster < between[0], between[0], raster)
+            raster=np.where(raster > between[1], between[1], raster)
+        print (raster)
+        image = raster
+        (mx,my) = image.shape
+        ax.imshow(image, cmap=plt.cm.gray, interpolation=interpolation)
+        ax.set_title('Display of a raster')
+
+        # Move left and bottom spines outward by 10 points
+        ax.spines['left'].set_position(('outward', my))
+        ax.spines['bottom'].set_position(('outward', mx))
+        # Hide the right and top spines
+        ax.spines['right'].set_visible(False)
+        ax.spines['top'].set_visible(False)
+        # Only show ticks on the left and bottom spines
+        ax.yaxis.set_ticks_position('left')
+        ax.xaxis.set_ticks_position('bottom')
+
+        plt.show()
+
+
 class RasterSection(RasterProcessor):
     """
     """
@@ -74,7 +102,7 @@ class RasterSection(RasterProcessor):
         sec=[]
         for x,y in self.line():
             sec.append(band[x,y])
-        return numpy.array(sec)
+        return np.array(sec)
 
     def line(self):
         def sign(x):
@@ -112,44 +140,40 @@ class RasterSection(RasterProcessor):
                 y+=iy
                 ey=ay
 
-def spline_plot():
-
+class RasterPlastics(RasterProcessor):
+    """Figures out plastic data of the relief.
     """
-    Demo of spines offset from the axes (a.k.a. "dropped spines").
-    """
-    import numpy as np
-    import matplotlib.pyplot as plt
 
-    fig, ax = plt.subplots()
+    def __init__(self, *args, **kwargs):
+        RasterProcessor.__init__(self, *args, **kwargs)
+        self.gradient=None
+        self.plastic=None
 
-    image = np.random.uniform(size=(10, 10))
-    ax.imshow(image, cmap=plt.cm.gray, interpolation='hamming')
-    ax.set_title('dropped spines')
-
-    # Move left and bottom spines outward by 10 points
-    ax.spines['left'].set_position(('outward', 10))
-    ax.spines['bottom'].set_position(('outward', 10))
-    # Hide the right and top spines
-    ax.spines['right'].set_visible(False)
-    ax.spines['top'].set_visible(False)
-    # Only show ticks on the left and bottom spines
-    ax.yaxis.set_ticks_position('left')
-    ax.xaxis.set_ticks_position('bottom')
-
-    plt.show()
+    def __call__(self, layer, method="simple", r=1):
+        """
+        """
+        band=RasterProcessor.__call__(self, layer)
+        gx, gy = diff.gradient(band)
+        self.gradient=(gx,gy)
+        if method=="simple":
+            plastic=diff.agrad(gx, gy)
+        elif method=="circle":
+            plastic=diff.roundagrad(gx, gy, r=r)
+        self.plastic=plastic
+        return plastic
 
 # TEST
 
 def test_1():
     h=Hatch(0,0, 832,784, 5)
-    rs=RasterSection(raster="../data/Goloustnoye/ALTITUDE 1Trim.grd", hatch=h)
+    rs=RasterSection(raster=TESTRASTER, hatch=h)
     rs.info()
     sec=rs(4)
     valid=sec[sec>0]
     print (valid)
-    x1=numpy.arange(len(valid))  #numpy.linspace(0,832)
+    x1=np.arange(len(valid))  #np.linspace(0,832)
     y1=valid
-    #x2=numpy.linspace(0,784)
+    #x2=np.linspace(0,784)
     #y2=valid
     #plt.subplot(2,1,1)
     plt.plot(x1, y1, 'r.-')
@@ -157,6 +181,12 @@ def test_1():
     #plt.plot(x2, y2, 'r.-')
     plt.show()
 
+def test_plastics():
+    rp=RasterPlastics(raster=TESTRASTER)
+    plastic=rp(4)
+    rp.display(plastic, between=(-10,10), interpolation="none")
+
 if __name__=="__main__":
-    test_1()
+    #test_1()
+    test_plastics()
     quit()
