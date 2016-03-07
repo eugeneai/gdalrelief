@@ -16,13 +16,9 @@ class Hatch(object):
         self.p2=(x2,y2)
         self.d=d
 
-class RasterSection(object):
-    """
-    """
-
-    def __init__(self, raster, hatch):
+class RasterProcessor(object):
+    def __init__(self, raster):
         self.raster=self.load(raster)
-        self.hatch=hatch
 
     def load(self, raster):
         if type(raster)==str:
@@ -36,6 +32,7 @@ class RasterSection(object):
     def __call__(self, layer):
         sec=[]
         band=self.raster.GetRasterBand(layer).ReadAsArray()
+        return band
         print (len(band[0]))
         for x,y in self.line():
             sec.append(band[x,y])
@@ -61,6 +58,23 @@ class RasterSection(object):
                         stats[0], stats[1], stats[2], stats[3] ))
 
         print ("-----------------------------------------")
+
+class RasterSection(RasterProcessor):
+    """
+    """
+
+    def __init__(self, raster, hatch):
+        RasterProcessor.__init__(self, raster)
+        self.hatch=hatch
+
+    def __call__(self, layer):
+        """
+        """
+        band=RasterProcessor.__call__(self, layer)
+        sec=[]
+        for x,y in self.line():
+            sec.append(band[x,y])
+        return numpy.array(sec)
 
     def line(self):
         def sign(x):
@@ -97,7 +111,6 @@ class RasterSection(object):
             if ay>=0:
                 y+=iy
                 ey=ay
-
 
 def spline_plot():
 
@@ -143,9 +156,6 @@ def test_1():
 
     #plt.plot(x2, y2, 'r.-')
     plt.show()
-
-
-
 
 if __name__=="__main__":
     test_1()
