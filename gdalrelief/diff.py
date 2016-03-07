@@ -1,58 +1,47 @@
-# -*- coding: cp1251 -*-
-from Numeric import *
-INVALID = 0             # порог данных, считающихся неправильными
+from numpy import *
+INVALID = 0             # Data threshould to detect physiscal data in grids
 
-def watch(x, mx, nint): # вспомогательная функция для обображения работы процесса
+def watch(x, mx, nint): # Auxiliary function to watch a computational process
     d = int(mx / nint)
     if x % d == 0:
         return 1
     return 0
-    
-def stream(a, adjust = 0): # вычисление поля стоков
-    (mx,my) = a.shape # узнать параметры грида (размер по x и по y)
+
+def gradient(a, adjust = 0, threshould=INVALID, default_height=0.0):
+    (mx,my) = a.shape # Get grid extends
     print "Adjusting..."
-    a = where(greater(a, 0), a, 455.0)
-                    
+    a = where(greater(a, threshould), a, default_height) # Originally default_height=455.0
+
     print "Find a stream line..."
     b  = a[:-2, 1:-1]-a[2:,1:-1]
     c  = a[1:-1,:-2]-a[1:-1,2:]
 
-    return (0.5*b, 0.5*c) # возврат поля векторов стока
+    return (0.5*b, 0.5*c)   # gx, gy are the gradient
 
-def gradient(a, adjust = 0): # вычисление поля градиентов
-    (mx,my) = a.shape # узнать параметры грида (размер по x и по y)
-    print "Adjusting..."
-    a = where(greater(a, 0), a, 455.0)
-                    
-    print "Find a stream line..."
-    b  = a[2:,1:-1]-a[:-2, 1:-1]
-    c  = a[1:-1,2:]-a[1:-1,:-2]
-    return (0.5*b, 0.5*c) # возврат поля градиентов
-    
-def agrad(dem, gx, gy):
+def agrad(dem, gx, gy): # Relief plastics accounting
     s =  gx[2:, 1:-1] - gx[:-2, 1:-1]  + gy[1:-1, 2:] - gy[1:-1, :-2]
     return s
 
-def roundagrad(dem, gx, gy, r):
+def roundagrad(dem, gx, gy, r): # Relief plastics accounting using a circle
     # gx[r:-r, r:-r]
     #gy[r:-r, r:-r]
     def sim(x,y, r):
         print x,y,r
-        mx, my=gx.shape # shapes 
+        mx, my=gx.shape # shapes
         mx-=r
         my-=r
         #return
-        s=- gx[r+x:mx+x, r:-r] * x - gy[r:-r, r+y:my+y] * y
-        s+=gx[r-x:mx-x, r:-r] * x - gy[r:-r, r+y:my+y] * y
-        s+=gx[r-x:mx-x, r:-r] * x + gy[r:-r, r-y:my-y] * y
+        s =-gx[r+x:mx+x, r:-r] * x - gy[r:-r, r+y:my+y] * y
+        s+= gx[r-x:mx-x, r:-r] * x - gy[r:-r, r+y:my+y] * y
+        s+= gx[r-x:mx-x, r:-r] * x + gy[r:-r, r-y:my-y] * y
         s+=-gx[r+x:mx+x, r:-r] * x + gy[r:-r, r-y:my-y] * y
-            
-        s+=- gx[r+y:mx+y, r:-r] * y - gy[r:-r, r+x:my+x] * x
-        s+=gx[r-y:mx-y, r:-r] * y - gy[r:-r, r+x:my+x] * x
-        s+=gx[r-y:mx-y, r:-r] * y + gy[r:-r, r-x:my-x] * x
+
+        s+=-gx[r+y:mx+y, r:-r] * y - gy[r:-r, r+x:my+x] * x
+        s+= gx[r-y:mx-y, r:-r] * y - gy[r:-r, r+x:my+x] * x
+        s+= gx[r-y:mx-y, r:-r] * y + gy[r:-r, r-x:my-x] * x
         s+=-gx[r+y:mx+y, r:-r] * y + gy[r:-r, r-x:my-x] * x
-        s=-s
-            
+        s =-s
+
         if x==0:
             s/=2
         if y==x:
@@ -74,7 +63,6 @@ def roundagrad(dem, gx, gy, r):
             y-=1
         x+=1
     return s
-    
+
 if __name__=="__main__":
         print roundagrad(0, 1,1, 10)
-        
