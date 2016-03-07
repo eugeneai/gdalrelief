@@ -1,0 +1,22 @@
+# openev macro
+#ROOT="F:\\home\\eugeneai\\Work\\danko\\grid\\"
+ROOT="C:\\tmp\\danko\\grid\\"
+
+from analysis.diff import agrad, avg, stream, roundagrad
+
+dem=LoadFile(ROOT+"dem")
+gradx=LoadFile(ROOT+"gradx.gtiff")
+grady=LoadFile(ROOT+"grady.gtiff")
+
+gradx = LoadFile(ROOT+"gradx.gtiff")
+grady = LoadFile(ROOT+"grady.gtiff")
+
+print "Analysis"
+rc1 = roundagrad(dem, gradx, grady, 5) 
+
+SaveArray(rc1, ROOT+"analysis.gtiff", "GTiff")
+
+print "More Analysis"
+display(rc1)
+
+print "end of troubles"

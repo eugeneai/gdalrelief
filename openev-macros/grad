@@ -1,0 +1,16 @@
+# openev macro
+#ROOT="F:\\home\\eugeneai\\Work\\danko\\grid\\"
+ROOT="C:\\tmp\\danko\\grid\\"                 # присвоение строкового значения
+from analysis.diff import stream,avg        # загрузка функции stream из модуля analysis.diff
+
+dem=LoadFile(ROOT+"dem")              # загрузка грида
+(gradx, grady) = stream(dem, 1)       # вычисление поля векторов стока
+
+display(dem)
+display(gradx)
+display(grady)
+
+SaveArray(dem, ROOT+"dem.gtiff", "GTiff")
+SaveArray(gradx, ROOT+"gradx.gtiff", "GTiff")
+SaveArray(grady, ROOT+"grady.gtiff", "GTiff")
+

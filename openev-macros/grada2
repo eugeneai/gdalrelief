@@ -1,0 +1,10 @@
+# openev macro
+ROOT="C:\\MyDocuments\\students\\katya\\data\\"
+
+
+gtiff=LoadFile(ROOT+"analysis.gtiff")
+tif=(gtiff*256).astype(UInt32)
+
+SaveArray(tif, ROOT+"analysis.tif", "TIFF")
+
+display(tif)

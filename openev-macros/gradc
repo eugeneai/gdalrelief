@@ -1,0 +1,21 @@
+# openev macro
+#ROOT="F:\\home\\eugeneai\\Work\\danko\\grid\\"
+ROOT="C:\\tmp\\danko\\"
+
+#from analysis.diff import agrad, avg, stream, roundagrad
+
+gradx = LoadFile(ROOT+"gradx.gtiff")
+gradx=where(less(gradx, -3), -3, gradx)+3.0
+grady = LoadFile(ROOT+"grady.gtiff")
+grady=where(less(grady, -3),-3, grady)+3.0
+
+d=256/3
+
+gx=(gradx*d).astype(UInt16)
+gy=(grady*d).astype(UInt16)
+
+#SaveArray(gx, ROOT+"gx.png", "PNG")
+#SaveArray(gy, ROOT+"gy.png", "PNG")
+
+display(gradx)
+display(grady)

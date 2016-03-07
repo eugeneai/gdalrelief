@@ -1,0 +1,15 @@
+# openev macro
+print "Hopefully working macro file"
+from analysis.diff import diff
+
+dem=LoadFile("C:\\tmp\\danko\\grid\\dem")
+ddem = diff(dem, 1)
+dddem = diff(ddem)
+
+display(dem)
+display(ddem)
+display(dddem)
+
+SaveArray(dem, "C:\\tmp\\danko\\dem.gtiff", "GTiff")
+SaveArray(ddem, "C:\\tmp\\danko\\ddem.gtiff", "GTiff")
+SaveArray(dddem, "C:\\tmp\\danko\\dddem.gtiff", "GTiff")

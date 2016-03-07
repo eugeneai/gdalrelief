@@ -1,0 +1,36 @@
+# openev macro
+from analysis.diff import diff
+from analysis.diff import analyse, analysev
+dem=LoadFile("C:\\tmp\\danko\\dem.gtiff")
+
+ddem = LoadFile("C:\\tmp\\danko\\ddem.gtiff")
+dddem = LoadFile("C:\\tmp\\danko\\dddem.gtiff")
+
+#display(dem)
+#display(ddem)
+#display(dddem)
+
+eps = 0.001
+
+#mh = zeros(dddem.shape, Int32)
+#mh[:,:] = -2
+#horisonlat traverse
+#mh = analyse(dem,ddem,dddem, 1701, 358, mh, eps, +1, 0)
+#mh = analyse(dem,ddem,dddem, 1701, 358, mh, eps, -1, 0)
+#mh = analyse(dem,ddem,dddem, 1444, 1199, mh, eps, +1, 0)
+#mh = analyse(dem,ddem,dddem, 1444, 1199, mh, eps, -1, 0)
+
+mv = zeros(dddem.shape, Int32)
+mv[:,:] = -2
+#vertical traverse
+try:
+    mv = analysev(dem,ddem,dddem, 1701, 358, mv, eps, 0, +1)
+    mv = analysev(dem,ddem,dddem, 1701, 358, mv, eps, 0, -1)
+except IndexError:
+    pass
+
+display(dddem)
+#display(mh)
+display(mv)
+#SaveArray(mh, "C:\\tmp\\danko\\tmph.gtiff", "GTiff")
+SaveArray(mv, "C:\\tmp\\danko\\tmpv.gtiff", "GTiff")
