@@ -149,7 +149,7 @@ class RasterPlastics(RasterProcessor):
         self.gradient=None
         self.plastic=None
 
-    def __call__(self, layer, method="simple", r=1):
+    def __call__(self, layer, method="simple", r=1, bitonal=False):
         """
         """
         band=RasterProcessor.__call__(self, layer)
@@ -159,6 +159,9 @@ class RasterPlastics(RasterProcessor):
             plastic=diff.agrad(gx, gy)
         elif method=="circle":
             plastic=diff.roundagrad(gx, gy, r=r)
+        if bitonal:
+            plastic=np.where(plastic > 1, 1, plastic)
+            plastic=np.where(plastic < -1, -1, plastic)
         self.plastic=plastic
         return plastic
 
@@ -183,8 +186,8 @@ def test_1():
 
 def test_plastics():
     rp=RasterPlastics(raster=TESTRASTER)
-    plastic=rp(4)
-    rp.display(plastic, between=(-10,10), interpolation="none")
+    plastic=rp(4, method="simple", r=5, bitonal=True)
+    rp.display(plastic, between=(-20,20), interpolation="none")
 
 if __name__=="__main__":
     #test_1()
