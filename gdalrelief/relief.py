@@ -6,7 +6,8 @@ import matplotlib.pyplot as plt
 import gdalrelief.diff as diff
 #import scipy
 
-TESTRASTER="../data/Goloustnoye/ALTITUDE 1Trim.grd"
+#TESTRASTER="../data/Goloustnoye/ALTITUDE 1Trim.grd"
+TESTRASTER="../data/Olkhon/dem.gtiff"
 
 class Hatch(object):
     """Defines section data consisting of
@@ -186,8 +187,10 @@ def test_1():
 
 def test_plastics():
     rp=RasterPlastics(raster=TESTRASTER)
-    plastic=rp(4, method="simple", r=5, bitonal=True)
-    rp.display(plastic, between=(-20,20), interpolation="none")
+    rp.info()
+    plastic=rp(1, method="simple", r=1, bitonal=True)
+
+    rp.display(plastic, between=(-5,5), interpolation="none")
 
 if __name__=="__main__":
     #test_1()
