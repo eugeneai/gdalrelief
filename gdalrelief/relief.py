@@ -4,7 +4,7 @@ import numpy as np
 from osgeo import gdal
 import matplotlib.pyplot as plt
 import gdalrelief.diff as diff
-import scipy
+from scipy.signal import argrelextrema
 import collections
 
 TESTRASTER="../data/Goloustnoye/ALTITUDE 1Trim.grd"
@@ -96,20 +96,63 @@ class RasterSection(RasterProcessor):
             sec.append(band[x,y])
         return np.array(sec)
 
-    def scan_line(self, layer):
+    def scan_line(self, layer, minheight, p1=None, p2=None):
         band=RasterProcessor.__call__(self, layer)
         self.current_band=band
+        if p1 == None:
+            p1=self.hatch.p1
+        if p2 == None:
+            p2=self.hatch.p2
         sec=collections.deque()
-        for x,y in self.line(extra=True):
-            print (x,y)
+        for x,y in self.line(p1,p2,extra=True):
             sec.append((x,y,band[y,x]))
-        for x,y in self.line(extra=True, forward=False, current=False):
-            print (x,y)
+            r=(x,y)
+        for x,y in self.line(p1,p2,extra=True, forward=False, current=False):
             sec.appendleft((x,y,band[y,x]))
-        return np.array(sec)
+            l=(x,y)
+        a=np.array(sec)
+        z=a[:,2]
+        zv=z>0
 
+        x=a[zv,0]
+        y=a[zv,1]
+        z=a[zv,2]
 
-    def line(self, extra=False, forward=True, current=True):
+        zu=argrelextrema(z, np.greater)
+        zd=argrelextrema(z, np.less)
+        zu=list(zu[0])
+        zd=list(zd[0])
+        iu=id=0
+        while True:
+            try:
+                d=abs(z[zu[iu]]-z[zd[id]])>=minheight
+            except IndexError:
+                break
+            if d:
+                if (zu[iu]<zd[id]):
+                    iu+=1
+                else:
+                    id+=1
+            else:
+                if (iu<id):
+                    zu.pop(iu)
+                else:
+                    zd.pop(id)
+        azu=np.empty(shape=(len(zu),3), dtype=float)
+        azu[:,0]=x[zu]
+        azu[:,1]=y[zu]
+        azu[:,2]=z[zu]
+        azd=np.empty(shape=(len(zd),3), dtype=float)
+        azd[:,0]=x[zd]
+        azd[:,1]=y[zd]
+        azd[:,2]=z[zd]
+        yield azu,azd,r,l
+
+    def scan(self, layer, minheight):
+        for azu,azd,r,l in self.scan_line(layer, minheight):
+            yield azu,azd
+
+    def line(self, p1, p2, extra=False, forward=True, current=True):
         def sign(x):
             if x<0:
                 return -1
@@ -123,9 +166,6 @@ class RasterSection(RasterProcessor):
         # print (my,mx)
 
         # Brasenham
-
-        p1=self.hatch.p1
-        p2=self.hatch.p2
 
         x,y=p1
         dx,dy=(p2[0]-p1[0]), (p2[1]-p1[1])
@@ -193,10 +233,12 @@ def test_1():
     h=Hatch(510,520, 500,500, 5)
     rs=RasterSection(raster=TESTRASTER, hatch=h)
     rs.info()
-    sec=rs.scan_line(4)
+    for u,d in rs.scan(4, 100):
+        print ("===", u,d)
+    """
     print (sec)
-    h=sec[:,2]
-    valid=h[h>0]
+    height=sec[:,2]
+    valid=height[height>0]
     print (valid)
     x1=np.arange(len(valid))  #np.linspace(0,832)
     y1=valid
@@ -207,6 +249,7 @@ def test_1():
 
     #plt.plot(x2, y2, 'r.-')
     plt.show()
+    """
 
 def test_plastics():
     rp=RasterPlastics(raster=TESTRASTER)
