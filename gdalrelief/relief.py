@@ -6,6 +6,10 @@ import matplotlib.pyplot as plt
 import gdalrelief.diff as diff
 from scipy.signal import argrelextrema
 import collections
+from osgeo.gdalconst import *
+
+# register all of the GDAL drivers
+gdal.AllRegister()
 
 #TESTRASTER="../data/Goloustnoye/ALTITUDE 1Trim.grd"
 TESTRASTER="../data/Olkhon/dem.gtiff"
@@ -59,7 +63,7 @@ class RasterProcessor(object):
 
         print ("-----------------------------------------")
 
-    def display(self, raster, between=None, cmap=plt.cm.gray, raster_alpha=None, **kwargs):
+    def display(self, raster, between=None, cmap=plt.cm.gray, raster_alpha=None, layer=None, **kwargs):
         fig, ax = plt.subplots()
         #print (raster)
         if between:
@@ -94,6 +98,25 @@ class RasterProcessor(object):
         self.alphas[layer]=alpha
         band[alpha]=np.nan
         return band
+
+    def save(self, filename, data, sx=0, sy=0, driver=None):
+        if driver == None:
+            driver = self.raster.GetDriver()
+        cols,rows = data.shape()
+        outGRID = driver.Create(filename, cols, rows, 1, GDT_Int32)
+        if outGRID is None:
+            raise RuntimeError("Could not create {}.".format(filename))
+        outBand = outGRID.GetRasterBand(1)
+        outBand.WriteArray(data, sx, sy)
+
+        # flush data to disk, set the NoData value and calculate stats
+        outBand.FlushCache()
+        outBand.SetNoDataValue(-9e+39)
+
+        # georeference the image and set the projection
+        outGRID.SetGeoTransform(self.raster.GetGeoTransform())
+        outGRID.SetProjection(self.raster.GetProjection())
+
 
 
 class RasterSection(RasterProcessor):
@@ -272,11 +295,14 @@ def test_plastics():
 
     alpha=rp.alphas[layer][2:-2,2:-2]
     plastic[alpha]=np.nan
+    """
     rp.display(plastic,
                between=(-100,100),
                interpolation="none",
                raster_alpha=alpha)
     rp.display(rp.band(layer), interpolation="none", cmap='gist_earth')
+    """
+    rp.save("test.gtiff", plastic)
 
 if __name__=="__main__":
     #test_1()
