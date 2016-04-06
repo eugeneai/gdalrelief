@@ -35,7 +35,7 @@ class RasterProcessor(object):
             return raster
 
     def __call__(self, layer):
-        return self.raster.GetRasterBand(layer).ReadAsArray()
+        return self.band(layer)
 
     def info(self):
         src_ds=self.raster
@@ -58,16 +58,18 @@ class RasterProcessor(object):
 
         print ("-----------------------------------------")
 
-    def display(self, raster, interpolation="nearest", between=None):
+    def display(self, raster, between=None, cmap=plt.cm.gray, **kwargs):
         fig, ax = plt.subplots()
-        print (raster)
+        #print (raster)
         if between:
-            raster=np.where(raster < between[0], between[0], raster)
-            raster=np.where(raster > between[1], between[1], raster)
-        print (raster)
+            raster=np.where(raster < between[0], np.nan, raster)
+            raster=np.where(raster > between[1], np.nan, raster)
+        raster[raster<-20000]=np.nan
+        #print (raster)
         image = raster
         (mx,my) = image.shape
-        ax.imshow(image, cmap=plt.cm.gray, interpolation=interpolation)
+        # ax.imshow(image, cmap=plt.cm.gray, interpolation=interpolation)
+        ax.imshow(image, cmap=cmap, **kwargs)
         ax.set_title('Display of a raster')
 
         # Move left and bottom spines outward by 10 points
@@ -81,6 +83,11 @@ class RasterProcessor(object):
         ax.xaxis.set_ticks_position('bottom')
 
         plt.show()
+
+    def band(self, layer):
+        band=self.raster.GetRasterBand(layer).ReadAsArray().astype(np.float)
+        band[band<0]=np.nan
+        return band
 
 
 class RasterSection(RasterProcessor):
@@ -233,7 +240,7 @@ def test_1():
     h=Hatch(510,520, 500,500, 5)
     rs=RasterSection(raster=TESTRASTER, hatch=h)
     rs.info()
-    for u,d in rs.scan(4, 100):
+    for u,d in rs.scan(4, 300):
         print ("===", u,d)
     """
     print (sec)
@@ -254,11 +261,12 @@ def test_1():
 def test_plastics():
     rp=RasterPlastics(raster=TESTRASTER)
     rp.info()
-    plastic=rp(1, method="simple", r=1, bitonal=True)
+    plastic=rp(4, method="simple", r=1, bitonal=False)
 
-    rp.display(plastic, between=(-5,5), interpolation="none")
+    rp.display(plastic,between=(-400,400), interpolation="none")
+    #rp.display(rp.band(4), interpolation="none", cmap='gist_earth')
 
 if __name__=="__main__":
-    test_1()
-    #test_plastics()
+    #test_1()
+    test_plastics()
     quit()
