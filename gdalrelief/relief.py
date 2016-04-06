@@ -7,8 +7,8 @@ import gdalrelief.diff as diff
 from scipy.signal import argrelextrema
 import collections
 
-TESTRASTER="../data/Goloustnoye/ALTITUDE 1Trim.grd"
-#TESTRASTER="../data/Olkhon/dem.gtiff"
+#TESTRASTER="../data/Goloustnoye/ALTITUDE 1Trim.grd"
+TESTRASTER="../data/Olkhon/dem.gtiff"
 
 class Hatch(object):
     """Defines section data consisting of
@@ -24,6 +24,7 @@ class Hatch(object):
 class RasterProcessor(object):
     def __init__(self, raster):
         self.raster=self.load(raster)
+        self.alphas={}
 
     def load(self, raster):
         if type(raster)==str:
@@ -58,13 +59,16 @@ class RasterProcessor(object):
 
         print ("-----------------------------------------")
 
-    def display(self, raster, between=None, cmap=plt.cm.gray, **kwargs):
+    def display(self, raster, between=None, cmap=plt.cm.gray, raster_alpha=None, **kwargs):
         fig, ax = plt.subplots()
         #print (raster)
         if between:
-            raster=np.where(raster < between[0], np.nan, raster)
-            raster=np.where(raster > between[1], np.nan, raster)
-        raster[raster<-20000]=np.nan
+            raster=np.where(raster <= between[0], np.nan, raster)
+            raster=np.where(raster >= between[1], np.nan, raster)
+        if raster_alpha != None:
+            print(raster.shape,raster_alpha.shape)
+            raster[raster_alpha]=np.nan
+        # raster[raster<=0]=np.nan
         #print (raster)
         image = raster
         (mx,my) = image.shape
@@ -86,7 +90,9 @@ class RasterProcessor(object):
 
     def band(self, layer):
         band=self.raster.GetRasterBand(layer).ReadAsArray().astype(np.float)
-        band[band<0]=np.nan
+        alpha=band<=0
+        self.alphas[layer]=alpha
+        band[alpha]=np.nan
         return band
 
 
@@ -261,10 +267,16 @@ def test_1():
 def test_plastics():
     rp=RasterPlastics(raster=TESTRASTER)
     rp.info()
-    plastic=rp(4, method="simple", r=1, bitonal=False)
+    layer=1
+    plastic=rp(layer, method="simple", r=1, bitonal=False)
 
-    rp.display(plastic,between=(-400,400), interpolation="none")
-    #rp.display(rp.band(4), interpolation="none", cmap='gist_earth')
+    alpha=rp.alphas[layer][2:-2,2:-2]
+    plastic[alpha]=np.nan
+    rp.display(plastic,
+               between=(-100,100),
+               interpolation="none",
+               raster_alpha=alpha)
+    rp.display(rp.band(layer), interpolation="none", cmap='gist_earth')
 
 if __name__=="__main__":
     #test_1()
