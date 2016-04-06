@@ -4,10 +4,11 @@ import numpy as np
 from osgeo import gdal
 import matplotlib.pyplot as plt
 import gdalrelief.diff as diff
-#import scipy
+import scipy
+import collections
 
-#TESTRASTER="../data/Goloustnoye/ALTITUDE 1Trim.grd"
-TESTRASTER="../data/Olkhon/dem.gtiff"
+TESTRASTER="../data/Goloustnoye/ALTITUDE 1Trim.grd"
+#TESTRASTER="../data/Olkhon/dem.gtiff"
 
 class Hatch(object):
     """Defines section data consisting of
@@ -34,13 +35,7 @@ class RasterProcessor(object):
             return raster
 
     def __call__(self, layer):
-        sec=[]
-        band=self.raster.GetRasterBand(layer).ReadAsArray()
-        return band
-        print (len(band[0]))
-        for x,y in self.line():
-            sec.append(band[x,y])
-        return np.array(sec)
+        return self.raster.GetRasterBand(layer).ReadAsArray()
 
     def info(self):
         src_ds=self.raster
@@ -97,15 +92,24 @@ class RasterSection(RasterProcessor):
         self.hatch=hatch
 
     def __call__(self, layer):
-        """
-        """
-        band=RasterProcessor.__call__(self, layer)
-        sec=[]
         for x,y in self.line():
             sec.append(band[x,y])
         return np.array(sec)
 
-    def line(self):
+    def scan_line(self, layer):
+        band=RasterProcessor.__call__(self, layer)
+        self.current_band=band
+        sec=collections.deque()
+        for x,y in self.line(extra=True):
+            print (x,y)
+            sec.append((x,y,band[y,x]))
+        for x,y in self.line(extra=True, forward=False, current=False):
+            print (x,y)
+            sec.appendleft((x,y,band[y,x]))
+        return np.array(sec)
+
+
+    def line(self, extra=False, forward=True, current=True):
         def sign(x):
             if x<0:
                 return -1
@@ -114,22 +118,32 @@ class RasterSection(RasterProcessor):
             else:
                 return 0
 
+        band=self.current_band
+        my,mx=band.shape
+        # print (my,mx)
+
         # Brasenham
 
         p1=self.hatch.p1
         p2=self.hatch.p2
 
         x,y=p1
-        dx,dy=p2[0]-p1[0], p2[1]-p1[1]
-        d=max(dx,dy)
+        dx,dy=(p2[0]-p1[0]), (p2[1]-p1[1])
         ex=ey=0
         ix=sign(dx)
         iy=sign(dy)
+        if not forward:
+            ix=-ix
+            iy=-iy
+        dx,dy=abs(dx),abs(dy)
+        d=max(dx,dy)
+        if current:
+            yield (x,y)
 
         while True:
-            yield (x,y)
-            if x==p2[0] and y==p2[1]:
-                return
+            if not extra:
+                if x==p2[0] and y==p2[1]:
+                    return
             ex+=dx
             ey+=dy
             ax=ex-d
@@ -140,6 +154,12 @@ class RasterSection(RasterProcessor):
             if ay>=0:
                 y+=iy
                 ey=ay
+            if x<0 or y<0:
+                return
+            if x>=mx or y>=my:
+                return
+            yield (x,y)
+
 
 class RasterPlastics(RasterProcessor):
     """Figures out plastic data of the relief.
@@ -169,11 +189,14 @@ class RasterPlastics(RasterProcessor):
 # TEST
 
 def test_1():
-    h=Hatch(0,0, 832,784, 5)
+    # h=Hatch(100,100, 732,684, 5)
+    h=Hatch(510,520, 500,500, 5)
     rs=RasterSection(raster=TESTRASTER, hatch=h)
     rs.info()
-    sec=rs(4)
-    valid=sec[sec>0]
+    sec=rs.scan_line(4)
+    print (sec)
+    h=sec[:,2]
+    valid=h[h>0]
     print (valid)
     x1=np.arange(len(valid))  #np.linspace(0,832)
     y1=valid
@@ -193,6 +216,6 @@ def test_plastics():
     rp.display(plastic, between=(-5,5), interpolation="none")
 
 if __name__=="__main__":
-    #test_1()
-    test_plastics()
+    test_1()
+    #test_plastics()
     quit()
