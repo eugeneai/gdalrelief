@@ -11,8 +11,9 @@ from osgeo.gdalconst import *
 # register all of the GDAL drivers
 gdal.AllRegister()
 
-#TESTRASTER="../data/Goloustnoye/ALTITUDE 1Trim.grd"
-TESTRASTER="../data/Olkhon/dem.gtiff"
+TESTRASTER_GOLOUSTNOYE="../data/Goloustnoye/ALTITUDE 1Trim.grd"
+TESTRASTER_OLKHON="../data/Olkhon/dem.gtiff"
+SAFE_GDAL_FORMAT="GTiff"
 
 class Hatch(object):
     """Defines section data consisting of
@@ -103,19 +104,28 @@ class RasterProcessor(object):
         if driver == None:
             driver = self.raster.GetDriver()
         rows,cols = data.shape
-        outGRID = driver.Create(filename, cols, rows, 1, GDT_Int32)
+        outGRID = driver.Create(filename, cols, rows, 1, GDT_Float32)
         if outGRID is None:
-            raise RuntimeError("Could not create {}.".format(filename))
+            driver = gdal.GetDriverByName(SAFE_GDAL_FORMAT)
+            filename+=".gtiff"
+            outGRID = driver.Create(filename, cols, rows, 1, GDT_Int32)
+            if outGRID is None:
+                raise RuntimeError("Could not create {}.".format(filename))
         outBand = outGRID.GetRasterBand(1)
         outBand.WriteArray(data, sx, sy)
 
         # flush data to disk, set the NoData value and calculate stats
         outBand.FlushCache()
-        outBand.SetNoDataValue(-9e+39)
+        outBand.SetNoDataValue(-1e36)
 
         # georeference the image and set the projection
         outGRID.SetGeoTransform(self.raster.GetGeoTransform())
         outGRID.SetProjection(self.raster.GetProjection())
+        outBand.FlushCache()
+        del outBand
+        del outGRID
+        print ("Saved {}".format(filename))
+
 
 
 
@@ -287,24 +297,35 @@ def test_1():
     plt.show()
     """
 
-def test_plastics():
-    rp=RasterPlastics(raster=TESTRASTER)
+def test_plastics(raster, name, layer):
+    rp=RasterPlastics(raster) # =TESTRASTER)
     rp.info()
-    layer=1
-    plastic=rp(layer, method="simple", r=1, bitonal=False)
 
-    alpha=rp.alphas[layer][2:-2,2:-2]
-    plastic[alpha]=np.nan
+    lmin,lmax=-200,200
+
+    r=1
+    plastic=rp(layer, method="simple", r=1, bitonal=False)
+    alpha=rp.alphas[layer]
+    a=alpha[r+1:-r-1,r+1:-r-1]
+    plastic[a]=np.nan
+    # rp.display(plastic, between=(lmin,lmax), interpolation="none", raster_alpha=a)
     """
-    rp.display(plastic,
-               between=(-100,100),
-               interpolation="none",
-               raster_alpha=alpha)
     rp.display(rp.band(layer), interpolation="none", cmap='gist_earth')
     """
-    rp.save("test.gtiff", plastic)
+    rp.save("plastic-{}-simple-r-1-n.gtiff".format(name), plastic)
+
+    for r in [5,10,20]:
+        plastic=rp(layer, method="circle", r=r, bitonal=False)
+        a=alpha[r+1:-r-1,r+1:-r-1]
+        print (plastic.shape, alpha.shape, a.shape)
+        plastic[a]=np.nan
+        #rp.display(plastic, between=(lmin,lmax), interpolation="none", raster_alpha=a)
+        rp.save("plastic-{}-circle-r-{}-n.gtiff".format(name,r), plastic)
+
+
 
 if __name__=="__main__":
     #test_1()
-    test_plastics()
+    #test_plastics(TESTRASTER_OLKHON, name="olkhon", layer=1)
+    test_plastics(TESTRASTER_GOLOUSTNOYE, name="goloustnoye", layer=4)
     quit()
