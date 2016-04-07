@@ -102,7 +102,7 @@ class RasterProcessor(object):
     def save(self, filename, data, sx=0, sy=0, driver=None):
         if driver == None:
             driver = self.raster.GetDriver()
-        cols,rows = data.shape()
+        rows,cols = data.shape
         outGRID = driver.Create(filename, cols, rows, 1, GDT_Int32)
         if outGRID is None:
             raise RuntimeError("Could not create {}.".format(filename))
