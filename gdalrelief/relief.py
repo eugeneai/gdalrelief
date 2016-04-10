@@ -65,15 +65,12 @@ class RasterProcessor(object):
 
         print ("-----------------------------------------")
 
-    def display(self, raster, between=None, cmap=plt.cm.gray, raster_alpha=None, layer=None, **kwargs):
+    def display(self, raster, between=None, cmap=plt.cm.gray, layer=None, **kwargs):
         fig, ax = plt.subplots()
         #print (raster)
         if between:
             raster=np.where(raster <= between[0], np.nan, raster)
             raster=np.where(raster >= between[1], np.nan, raster)
-        if raster_alpha != None:
-            print(raster.shape,raster_alpha.shape)
-            raster[raster_alpha]=np.nan
         # raster[raster<=0]=np.nan
         #print (raster)
         image = raster
@@ -97,11 +94,13 @@ class RasterProcessor(object):
     def band(self, layer):
         bnd=self.raster.GetRasterBand(layer)
         band=bnd.ReadAsArray()
-        nan_val=bnd.GetNoDataValue()
+        nan_value=bnd.GetNoDataValue()
+        if nan_value == None:
+            nan_value=np.amin(band)
 
-        return ma.masked_values(band, nan_val)
+        return ma.masked_values(band, nan_value)
 
-    def save(self, filename, data, sx=0, sy=0, driver=None):
+    def save(self, filename, data, sx=0, sy=0, driver=None, nan_value=None):
         if driver == None:
             driver = self.raster.GetDriver()
         rows,cols = data.shape
@@ -112,12 +111,19 @@ class RasterProcessor(object):
             outGRID = driver.Create(filename, cols, rows, 1, GDT_Int32)
             if outGRID is None:
                 raise RuntimeError("Could not create {}.".format(filename))
+        else:
+            if nan_value == None:
+                nan_value = self.raster.GetRasterBand(1).GetNoDataValue()
+        if nan_value == None:
+            nan_value = -7000000
         outBand = outGRID.GetRasterBand(1)
-        outBand.WriteArray(data, sx, sy)
+        d=np.array(data.data)
+        d[data.mask]=nan_value
+        outBand.WriteArray(d, sx, sy)
 
         # flush data to disk, set the NoData value and calculate stats
         outBand.FlushCache()
-        outBand.SetNoDataValue(-1e36)
+        outBand.SetNoDataValue(nan_value)
 
         # georeference the image and set the projection
         outGRID.SetGeoTransform(self.raster.GetGeoTransform())
@@ -260,8 +266,7 @@ class RasterPlastics(RasterProcessor):
     def __call__(self, layer, method="simple", r=1, bitonal=False):
         """
         """
-        band=RasterProcessor.__call__(self, layer)
-        gx, gy = diff.gradient(band)
+        gx, gy = self.get_diffs(layer=layer)
         self.gradient=(gx,gy)
         if method=="simple":
             plastic=diff.agrad(gx, gy)
@@ -272,6 +277,11 @@ class RasterPlastics(RasterProcessor):
             plastic=np.where(plastic < -1, -1, plastic)
         self.plastic=plastic
         return plastic
+
+    def get_diffs(self, band=None, layer=None):
+        if layer != None:
+            band=RasterProcessor.band(self, layer)
+        return diff.gradient(band)
 
 # TEST
 
@@ -298,7 +308,7 @@ def test_1():
     plt.show()
     """
 
-def test_plastics(raster, name, layer):
+def script_plastics(raster, name, layer, display=False):
     rp=RasterPlastics(raster) # =TESTRASTER)
     rp.info()
 
@@ -306,28 +316,26 @@ def test_plastics(raster, name, layer):
 
     r=1
     plastic=rp(layer, method="simple", r=1, bitonal=False)
-    alpha=rp.alphas[layer]
-    a=alpha[r+1:-r-1,r+1:-r-1]
-    plastic[a]=np.nan
-    # rp.display(plastic, between=(lmin,lmax), interpolation="none", raster_alpha=a)
-    rp.display(rp.band(layer), interpolation="none", cmap='gist_earth')
+    print (plastic)
+    if display:
+        rp.display(plastic, interpolation="none")
+    # rp.display(rp.band(layer), interpolation="none", cmap='gist_earth')
 
-    """
+    gx,gy=rp.get_diffs(layer=layer)
+
     rp.save("plastic-{}-simple-r-1-n.gtiff".format(name), plastic)
+    rp.save("plastic-{}-diff-x.gtiff".format(name), gx)
+    rp.save("plastic-{}-diff-y.gtiff".format(name), gy)
 
-    for r in [5,10,20]:
+    for r in [5,10]:
         plastic=rp(layer, method="circle", r=r, bitonal=False)
-        a=alpha[r+1:-r-1,r+1:-r-1]
-        print (plastic.shape, alpha.shape, a.shape)
-        plastic[a]=np.nan
-        #rp.display(plastic, between=(lmin,lmax), interpolation="none", raster_alpha=a)
+        #rp.display(plastic, between=(lmin,lmax), interpolation="none")
         rp.save("plastic-{}-circle-r-{}-n.gtiff".format(name,r), plastic)
 
-    """
 
 
 if __name__=="__main__":
     #test_1()
-    #test_plastics(TESTRASTER_OLKHON, name="olkhon", layer=1)
-    test_plastics(TESTRASTER_GOLOUSTNOYE, name="goloustnoye", layer=4)
+    script_plastics(TESTRASTER_OLKHON, name="olkhon", layer=1)
+    script_plastics(TESTRASTER_GOLOUSTNOYE, name="goloustnoye", layer=4)
     quit()

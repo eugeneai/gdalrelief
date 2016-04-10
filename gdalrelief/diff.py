@@ -9,8 +9,8 @@ def watch(x, mx, nint): # Auxiliary function to watch a computational process
 
 def gradient(a, threshould=INVALID, default_height=0.0):
     (mx,my) = a.shape # Get grid extends
-    print ("Adjusting...")
-    a = where(greater(a, threshould), a, default_height) # Originally default_height=455.0
+    #print ("Adjusting...")
+    #a = where(greater(a, threshould), a, default_height) # Originally default_height=455.0
 
     print ("Find a stream line...")
     b  = a[:-2, 1:-1]-a[2:,1:-1]
@@ -23,14 +23,11 @@ def agrad(gx, gy): # Relief plastics accounting
     return s
 
 def roundagrad(gx, gy, r): # Relief plastics accounting using a circle
-    # gx[r:-r, r:-r]
-    #gy[r:-r, r:-r]
     def sim(x,y, r):
         print (x,y,r)
         mx, my=gx.shape # shapes
         mx-=r
         my-=r
-        #return
         s =-gx[r+x:mx+x, r:-r] * x - gy[r:-r, r+y:my+y] * y
         s+= gx[r-x:mx-x, r:-r] * x - gy[r:-r, r+y:my+y] * y
         s+= gx[r-x:mx-x, r:-r] * x + gy[r:-r, r-y:my-y] * y
