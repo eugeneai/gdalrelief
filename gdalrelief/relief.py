@@ -95,11 +95,11 @@ class RasterProcessor(object):
         plt.show()
 
     def band(self, layer):
-        band=self.raster.GetRasterBand(layer).ReadAsArray() # .astype(np.float)
-        alpha=band<=0
-        self.alphas[layer]=alpha
-        band[alpha]=np.nan
-        return band
+        bnd=self.raster.GetRasterBand(layer)
+        band=bnd.ReadAsArray()
+        nan_val=bnd.GetNoDataValue()
+
+        return ma.masked_values(band, nan_val)
 
     def save(self, filename, data, sx=0, sy=0, driver=None):
         if driver == None:
@@ -310,8 +310,8 @@ def test_plastics(raster, name, layer):
     a=alpha[r+1:-r-1,r+1:-r-1]
     plastic[a]=np.nan
     # rp.display(plastic, between=(lmin,lmax), interpolation="none", raster_alpha=a)
-    """
     rp.display(rp.band(layer), interpolation="none", cmap='gist_earth')
+
     """
     rp.save("plastic-{}-simple-r-1-n.gtiff".format(name), plastic)
 
@@ -323,6 +323,7 @@ def test_plastics(raster, name, layer):
         #rp.display(plastic, between=(lmin,lmax), interpolation="none", raster_alpha=a)
         rp.save("plastic-{}-circle-r-{}-n.gtiff".format(name,r), plastic)
 
+    """
 
 
 if __name__=="__main__":
