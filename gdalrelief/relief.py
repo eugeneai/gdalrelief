@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 # a bar plot with errorbars
 import numpy as np
+import numpy.ma as ma
 from osgeo import gdal
 import matplotlib.pyplot as plt
 import gdalrelief.diff as diff
@@ -94,7 +95,7 @@ class RasterProcessor(object):
         plt.show()
 
     def band(self, layer):
-        band=self.raster.GetRasterBand(layer).ReadAsArray().astype(np.float)
+        band=self.raster.GetRasterBand(layer).ReadAsArray() # .astype(np.float)
         alpha=band<=0
         self.alphas[layer]=alpha
         band[alpha]=np.nan
