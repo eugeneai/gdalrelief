@@ -173,24 +173,34 @@ class RasterSection(RasterProcessor):
 
         zu=argrelextrema(z, np.greater)
         zd=argrelextrema(z, np.less)
-        zu=list(zu[0])
+        zu=list(zu[0]) # Numers of heights values
         zd=list(zd[0])
         iu=id=0
+        # Removing small extremums
+
+        #import pudb; pu.db
         while True:
+            # FIXME, I'm wrong
             try:
                 d=abs(z[zu[iu]]-z[zd[id]])>=minheight
             except IndexError:
                 break
+            q=zu[iu]<zd[id] # x-coord of lower point is early
             if d:
-                if (zu[iu]<zd[id]):
+                if (q): # Compare x coords
                     iu+=1
                 else:
                     id+=1
             else:
-                if (iu<id):
-                    zu.pop(iu)
+                zu.pop(iu)
+                zd.pop(id)
+                if (q):
+                    if id>0:
+                        id-=1
                 else:
-                    zd.pop(id)
+                    if iu>0:
+                        iu-=1
+
         azu=np.empty(shape=(len(zu),3), dtype=float)
         azu[:,0]=x[zu]
         azu[:,1]=y[zu]
@@ -199,11 +209,11 @@ class RasterSection(RasterProcessor):
         azd[:,0]=x[zd]
         azd[:,1]=y[zd]
         azd[:,2]=z[zd]
-        yield azu,azd,r,l
+        yield z,azu,azd,r,l
 
     def scan(self, layer, minheight):
-        for azu,azd,r,l in self.scan_line(layer, minheight):
-            yield azu,azd
+        for z,azu,azd,r,l in self.scan_line(layer, minheight):
+            yield z,azu,azd
 
     def line(self, p1, p2, extra=False, forward=True, current=True):
         def sign(x):
@@ -288,15 +298,18 @@ class RasterPlastics(RasterProcessor):
 def test_1():
     # h=Hatch(100,100, 732,684, 5)
     h=Hatch(510,520, 500,500, 5)
-    rs=RasterSection(raster=TESTRASTER, hatch=h)
+    rs=RasterSection(raster=TESTRASTER_GOLOUSTNOYE, hatch=h)
     rs.info()
-    for u,d in rs.scan(4, 300):
+    for z,u,d in rs.scan(4, 30):
         print ("===", u,d)
-    """
-    print (sec)
-    height=sec[:,2]
-    valid=height[height>0]
+
+    # print (sec)
+    height=z
+    #valid=height[height>0]
+    valid=height
+
     print (valid)
+
     x1=np.arange(len(valid))  #np.linspace(0,832)
     y1=valid
     #x2=np.linspace(0,784)
@@ -306,7 +319,6 @@ def test_1():
 
     #plt.plot(x2, y2, 'r.-')
     plt.show()
-    """
 
 def script_plastics(raster, name, layer, display=False):
     rp=RasterPlastics(raster) # =TESTRASTER)
@@ -335,7 +347,7 @@ def script_plastics(raster, name, layer, display=False):
 
 
 if __name__=="__main__":
-    #test_1()
-    script_plastics(TESTRASTER_OLKHON, name="olkhon", layer=1)
-    script_plastics(TESTRASTER_GOLOUSTNOYE, name="goloustnoye", layer=4)
+    test_1()
+    #script_plastics(TESTRASTER_OLKHON, name="olkhon", layer=1)
+    #script_plastics(TESTRASTER_GOLOUSTNOYE, name="goloustnoye", layer=4)
     quit()
