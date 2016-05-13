@@ -209,11 +209,11 @@ class RasterSection(RasterProcessor):
         azd[:,0]=x[zd]
         azd[:,1]=y[zd]
         azd[:,2]=z[zd]
-        yield z,azu,azd,r,l
+        yield z,zu,zd,azu,azd,r,l
 
     def scan(self, layer, minheight):
-        for z,azu,azd,r,l in self.scan_line(layer, minheight):
-            yield z,azu,azd
+        for z,zu,zd,azu,azd,r,l in self.scan_line(layer, minheight):
+            yield z,zu,zd,azu,azd
 
     def line(self, p1, p2, extra=False, forward=True, current=True):
         def sign(x):
@@ -300,7 +300,7 @@ def test_1():
     h=Hatch(510,520, 500,500, 5)
     rs=RasterSection(raster=TESTRASTER_GOLOUSTNOYE, hatch=h)
     rs.info()
-    for z,u,d in rs.scan(4, 30):
+    for z,zu,zd,u,d in rs.scan(4, 20):
         print ("===", u,d)
 
     # print (sec)
@@ -316,6 +316,9 @@ def test_1():
     #y2=valid
     #plt.subplot(2,1,1)
     plt.plot(x1, y1, 'r.-')
+    plt.plot(zu, z[zu], 'g.-')
+    plt.plot(zd, z[zd], 'g.-')
+
 
     #plt.plot(x2, y2, 'r.-')
     plt.show()
