@@ -21,10 +21,19 @@ class Hatch(object):
     d is a distance from the line
     """
 
-    def __init__(self, x1,y1,  x2,y2, d):
-        self.p1=(x1,y1)
-        self.p2=(x2,y2)
+    def __init__(self, x1=None,y1=None,  x2=None,y2=None, d=5.0, p1=None, p2=None):
+        if p1 != None:
+            self.p1=p1
+        else:
+            self.p1=(x1,y1)
+        if p2 != None:
+            self.p2=p2
+        else:
+            self.p2=(x2,y2)
         self.d=d
+
+    def copy(self):
+        return self.__class__(p1=self.p1, p2=self.p2)
 
 class RasterSection(RasterProcessor):
     """
@@ -32,6 +41,9 @@ class RasterSection(RasterProcessor):
 
     def __init__(self, raster, hatch):
         RasterProcessor.__init__(self, raster)
+        self.set_hatch(hatch)
+
+    def set_hatch(self, hatch):
         self.hatch=hatch
 
     def __call__(self, layer):
@@ -39,7 +51,7 @@ class RasterSection(RasterProcessor):
             sec.append(band[x,y])
         return np.array(sec)
 
-    def scan_line(self, layer, minheight, p1=None, p2=None):
+    def scan_line(self, layer, minheight, p1=None, p2=None, need_bounds=False):
         band=RasterProcessor.__call__(self, layer)
         self.current_band=band
         if p1 == None:
@@ -99,11 +111,48 @@ class RasterSection(RasterProcessor):
         azd[:,0]=x[zd]
         azd[:,1]=y[zd]
         azd[:,2]=z[zd]
-        yield z,zu,zd,azu,azd,r,l
+        if need_bounds:
+            yield z,zu,zd,azu,azd,r,l
+        else:
+            yield z,zu,zd,azu,azd
 
     def scan(self, layer, minheight):
-        for z,zu,zd,azu,azd,r,l in self.scan_line(layer, minheight):
+        save=self.hatch.copy()
+        n = 5
+        c = 0
+        d=self.hatch.d
+
+        for z,zu,zd,azu,azd,r,l in self.scan_line(layer, minheight, need_bounds=True):
             yield z,zu,zd,azu,azd
+
+        if r[0]<l[0]: # wrong way
+            p=r; r=l; l=p
+
+        lu=ld=l
+        ru=rd=r
+
+        while True:
+
+            lu=lu[0],lu[1] - d
+            ld=ld[0],ld[1] + d
+            ru=ru[0],ru[1] - d
+            rd=rd[0],rd[1] + d
+
+            h=Hatch(d=d,p1=lu,p2=ru)
+            self.set_hatch(h)
+            for z,zu,zd,azu,azd in self.scan_line(layer, minheight):
+                yield z,zu,zd,azu,azd
+
+            h=Hatch(d=d,p1=ld,p2=rd)
+            self.set_hatch(h)
+            for z,zu,zd,azu,azd in self.scan_line(layer, minheight):
+                yield z,zu,zd,azu,azd
+
+            c+=1
+            if c>n:
+                break
+
+        self.set_hatch(save)
 
     def line(self, p1, p2, extra=False, forward=True, current=True):
         def sign(x):
@@ -147,9 +196,7 @@ class RasterSection(RasterProcessor):
             if ay>=0:
                 y+=iy
                 ey=ay
-            if x<0 or y<0:
-                return
-            if x>=mx or y>=my:
+            if x<0 or y<0 or x>=mx or y>=my:
                 return
             yield (x,y)
 
@@ -158,27 +205,35 @@ class RasterSection(RasterProcessor):
 
 def test_1():
     # h=Hatch(100,100, 732,684, 5)
-    h=Hatch(510,520, 500,500, 5)
+    h=Hatch(3,400, 700, 300, 50)
     rs=RasterSection(raster=TESTRASTER_GOLOUSTNOYE, hatch=h)
     rs.info()
+
+    au=None
+    ad=None
     for z,zu,zd,u,d in rs.scan(4, 20):
-        print ("===", u,d)
+        #print ("===", u,d)
+        if au != None:
+            au = np.append(au, u, axis=0)
+        else:
+            au=u
+        if ad != None:
+            ad = np.append(ad, d, axis=0)
+        else:
+            ad=d
 
-    # print (sec)
-    height=z
-    #valid=height[height>0]
-    valid=height
+    print (au, ad)
 
-    print (valid)
+    if False:
+        height=z
+        valid=height
 
-    x1=np.arange(len(valid))  #np.linspace(0,832)
-    y1=valid
-    #x2=np.linspace(0,784)
-    #y2=valid
-    #plt.subplot(2,1,1)
-    plt.plot(x1, y1, 'r.-')
-    plt.plot(zu, z[zu], 'g.-')
-    plt.plot(zd, z[zd], 'g.-')
+        x1=np.arange(len(valid))  #np.linspace(0,832)
+        y1=valid
+
+        plt.plot(x1, y1, 'r.-')
+        plt.plot(zu, z[zu], 'g.-')
+        plt.plot(zd, z[zd], 'g.-')
 
 
     #plt.plot(x2, y2, 'r.-')
