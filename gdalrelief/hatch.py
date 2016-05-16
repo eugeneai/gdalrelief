@@ -9,6 +9,9 @@ from scipy.signal import argrelextrema
 import collections
 from osgeo.gdalconst import *
 from common import *
+from scipy import interpolate
+from matplotlib import cm
+from mpl_toolkits.mplot3d.axes3d import get_test_data
 
 
 TESTRASTER_GOLOUSTNOYE="../data/Goloustnoye/ALTITUDE 1Trim.grd"
@@ -224,6 +227,9 @@ def test_1():
 
     print (au, ad)
 
+    fu = interpolate.interp2d(au[:,0], au[:,0], au[:,0], kind='cubic')
+    fd = interpolate.interp2d(ad[:,0], ad[:,0], ad[:,0], kind='cubic')
+
     if False:
         height=z
         valid=height
@@ -234,10 +240,47 @@ def test_1():
         plt.plot(x1, y1, 'r.-')
         plt.plot(zu, z[zu], 'g.-')
         plt.plot(zd, z[zd], 'g.-')
+        #plt.plot(x2, y2, 'r.-')
+        plt.show()
+
+    if True:
+        w,h=rs.current_band.shape
+        prec=10
+        xnew = np.arange(0, w, prec)
+        ynew = np.arange(0, h, prec)
+        znew = fd(xnew, ynew) # FIXME, please, I'm very stupid copypaster.
+        xnew, ynew = np.meshgrid(xnew, ynew)
+
+        fig = plt.figure(figsize=plt.figaspect(1))
+
+        #---- First subplot
+        ax = fig.add_subplot(1, 1, 1, projection='3d')
+
+        surf = ax.plot_surface(xnew, ynew, znew, rstride=1, cstride=1, cmap=cm.coolwarm,
+                               linewidth=0, antialiased=True)
+        ax.set_zlim3d(420, 1500)
+
+        fig.colorbar(surf, shrink=0.5, aspect=10)
+
+        #---- Second subplot
+        #ax = fig.add_subplot(1, 2, 2, projection='3d')
+        #X, Y, Z = get_test_data(0.05)
+        #ax.plot_wireframe(X, Y, Z, rstride=10, cstride=10)
+
+        plt.show()
 
 
-    #plt.plot(x2, y2, 'r.-')
-    plt.show()
+
+
+
+
+
+
+
+
+
+
+
 
 if __name__=="__main__":
     # register all of the GDAL drivers
