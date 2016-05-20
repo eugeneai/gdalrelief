@@ -12,6 +12,7 @@ from common import *
 from scipy import interpolate
 from matplotlib import cm
 from mpl_toolkits.mplot3d.axes3d import get_test_data
+from itertools import product
 
 
 TESTRASTER_GOLOUSTNOYE="../data/Goloustnoye/ALTITUDE 1Trim.grd"
@@ -42,7 +43,7 @@ class RasterSection(RasterProcessor):
     """
     """
 
-    def __init__(self, raster, hatch):
+    def __init__(self, raster, hatch=None):
         RasterProcessor.__init__(self, raster)
         self.set_hatch(hatch)
 
@@ -203,6 +204,135 @@ class RasterSection(RasterProcessor):
                 return
             yield (x,y)
 
+    def scan_sq(self, layer):
+        band=RasterProcessor.__call__(self, layer)
+        a=self.current_band=band
+        h,w=a.shape
+        print (h,w)
+        yield from self.ss(0,0,w,h)
+
+    def ss(self, r, c, w,h):
+        """
+        """
+        if w == 1 and h==1:
+            yield from self.check_ext(r,c)
+            return
+        if w>1:
+            w2=w//2
+        if h>1:
+            h2=h//2
+        if w>1 and h>1:
+            yield from self.ss(r,c,w2,h2)
+            yield from self.ss(r,c+w2,w-w2,h2)
+            yield from self.ss(r+h2,c,w2,h-h2)
+            yield from self.ss(r+h2,c+w2,w-w2,h-h2)
+        elif h>1:
+            yield from self.ss(r,c,w,h2)
+            yield from self.ss(r+h2,c,w,h-h2)
+        elif w>1:
+            yield from self.ss(r,c,w2,h)
+            yield from self.ss(r,c+w2,w-w2,h)
+        else:
+            raise RuntimeError("wrong combinations")
+
+    DD=((0,1),(0,-1),(1,0),(-1,0),(1,1),(1,-1),(-1,1),(-1,-1))
+
+    def mat_scan(self, layer):
+        band=RasterProcessor.__call__(self, layer)
+        a=self.current_band=band
+        h,w=a.shape
+        print (h,w)
+        mi=np.ones((h,w), dtype=bool)
+        ma=np.ones((h,w), dtype=bool)
+
+        for dr,dc in self.__class__.DD:
+            self.d(a,mi,True , dr, dc)
+            self.d(a,ma,False, dr, dc)
+
+        return mi, ma
+
+    def d(self, a,m,miop, dr,dc):
+        b=a[:,:]
+        c=a[:,:]
+        q=m[:,:]
+        if dc>0:
+            c=c[:-1,:]
+            q=q[:-1,:]
+            b=b[1:,:]
+        elif dc<0:
+            c=c[1:,:]
+            q=q[1:,:]
+            b=b[:-1,:]
+
+        if dr>0:
+            c=c[:,:-1]
+            q=q[:,:-1]
+            b=b[:,1:]
+        else:
+            c=c[:,1:]
+            q=q[:,1:]
+            b=b[:,:-1]
+        if miop:
+            d=c<b
+        else:
+            d=c>b
+        q &= d
+
+        # if dc>0:
+        #     c=c[:-1,:]
+        #     q=q[:-1,:]
+        #     b=b[1:,:]
+        # elif dc<0:
+        #     c=c[1:,:]
+        #     q=q[1:,:]
+        #     b=b[:-1,:]
+
+        # if dr>0:
+        #     c=c[:,:-1]
+        #     q=q[:,:-1]
+        #     b=b[:,1:]
+        # else:
+        #     c=c[:,1:]
+        #     q=q[:,1:]
+        #     b=b[:,:-1]
+        # print (q)
+        #return q
+
+
+    def check_ext(self, r,c):
+        """
+        """
+        a=self.current_band
+        h,w=a.shape
+        h=hmin=hmax=a[r,c]
+        if np.isnan(h):
+            return
+        ma=mi=True
+        for dc,dr in self.__class__.DD:
+            cr=r+dr
+            cc=c+dc
+            if cc>=w:
+                continue
+            if cr>=h:
+                continue
+            if cc<0:
+                continue
+            if cr<0:
+                continue
+            print (cr,cc)
+            h=a[cr,cc]
+            if np.isnan(h):
+                continue
+
+            if h>hmax:
+                ma=False
+            if h<hmin:
+                mi=False
+
+        if ma:
+            yield (True, r,c,hmax) # True means max
+        if mi:
+            yield (False, r,c,hmin) # False means min
 
 # TEST
 
@@ -269,13 +399,60 @@ def test_1():
 
         plt.show()
 
+def test_2():
+    # h=Hatch(100,100, 732,684, 5)
+    h=Hatch(3,400, 700, 300, 50)
+    rs=RasterSection(raster=TESTRASTER_GOLOUSTNOYE)
+    rs.info()
 
+    mi,ma=rs.mat_scan(4)
+    a=rs.current_band
+    h,w=a.shape
+    print(mi,ma)
 
+    au=[]
+    ad=[]
 
+    for r,c in product(range(h),range(w)):
+        z=a[r,c]
+        if mi[r,c]==True:
+            ad.append((c,r,z))
+        if ma[r,c]==True:
+            au.append((c,r,z))
 
+    au=np.array(au)
+    ad=np.array(ad)
 
+    interpol='cubic'
+    fu = interpolate.interp2d(au[:,0], au[:,0], au[:,0], kind=interpol)
+    fd = interpolate.interp2d(ad[:,0], ad[:,0], ad[:,0], kind=interpol)
 
+    f=fu
+    if True:
+        w,h=rs.current_band.shape
+        prec=10
+        xnew = np.arange(0, w, prec)
+        ynew = np.arange(0, h, prec)
+        znew = f(xnew, ynew) # FIXME, please, I'm very stupid copypaster.
+        xnew, ynew = np.meshgrid(xnew, ynew)
 
+        fig = plt.figure(figsize=plt.figaspect(1))
+
+        #---- First subplot
+        ax = fig.add_subplot(1, 1, 1, projection='3d')
+
+        surf = ax.plot_surface(xnew, ynew, znew, rstride=1, cstride=1, cmap=cm.coolwarm,
+                               linewidth=0, antialiased=True)
+        ax.set_zlim3d(420, 1500)
+
+        fig.colorbar(surf, shrink=0.5, aspect=10)
+
+        #---- Second subplot
+        #ax = fig.add_subplot(1, 2, 2, projection='3d')
+        #X, Y, Z = get_test_data(0.05)
+        #ax.plot_wireframe(X, Y, Z, rstride=10, cstride=10)
+
+        plt.show()
 
 
 
@@ -286,6 +463,6 @@ if __name__=="__main__":
     # register all of the GDAL drivers
     gdal.AllRegister()
 
-    test_1()
+    test_2()
 
     quit()
